@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: atomic-crm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: atomic-crm
+  template:
+    metadata:
+      labels:
+        app: atomic-crm
+    spec:
+      containers:
+      - name: atomic-crm
+        image: atomic-crm:latest
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: atomic-crm-config

@@ -1,0 +1,107 @@
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Create Supabase namespace
+      shell: |
+        kubectl create namespace supabase --dry-run=client -o yaml | kubectl apply -f -
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+
+    - name: Write PostgreSQL deployment YAML to file
+      copy:
+        content: |
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: postgres
+            namespace: supabase
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: postgres
+            template:
+              metadata:
+                labels:
+                  app: postgres
+              spec:
+                securityContext:
+                  fsGroup: 999  # PostgreSQL group
+                containers:
+                - name: postgres
+                  image: postgres:13
+                  securityContext:
+                    runAsUser: 999  # PostgreSQL user
+                  env:
+                  - name: POSTGRES_PASSWORD
+                    value: "yourpassword123"
+                  - name: POSTGRES_USER
+                    value: "postgres"
+                  - name: POSTGRES_DB
+                    value: "atomic_crm"
+                  - name: PGDATA
+                    value: "/var/lib/postgresql/data/pgdata"
+                  ports:
+                  - containerPort: 5432
+                  volumeMounts:
+                  - name: postgres-storage
+                    mountPath: /var/lib/postgresql/data
+                  resources:
+                    requests:
+                      memory: "512Mi"
+                      cpu: "500m"
+                    limits:
+                      memory: "2Gi"
+                      cpu: "1"
+                  livenessProbe:
+                    exec:
+                      command: ["pg_isready", "-U", "postgres"]
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                  readinessProbe:
+                    exec:
+                      command: ["pg_isready", "-U", "postgres"]
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+                volumes:
+                - name: postgres-storage
+                  persistentVolumeClaim:
+                    claimName: postgres-pvc
+          ---
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: postgres-pvc
+            namespace: supabase
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 5Gi
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: postgres
+            namespace: supabase
+          spec:
+            type: ClusterIP
+            selector:
+              app: postgres
+            ports:
+              - protocol: TCP
+                port: 5432
+                targetPort: 5432
+        dest: /tmp/postgres-deployment.yaml
+
+    - name: Apply PostgreSQL deployment YAML
+      command: kubectl apply -f /tmp/postgres-deployment.yaml --validate=false
+
+    - name: Wait for PostgreSQL to initialize
+      command: kubectl rollout status deployment/postgres -n supabase
+      register: rollout_result
+      until: rollout_result.rc == 0
+      retries: 15
+      delay: 10

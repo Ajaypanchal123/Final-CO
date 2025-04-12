@@ -1,0 +1,14 @@
+- name: Delete Supabase resources
+  hosts: localhost
+  tasks:
+    - name: Delete postgres deployment
+      command: kubectl delete deployment postgres -n supabase
+      ignore_errors: yes
+
+    - name: Delete PVC
+      command: kubectl delete pvc postgres-pvc -n supabase
+      ignore_errors: yes
+
+    - name: Delete namespace
+      command: kubectl delete namespace supabase
+      ignore_errors: yes
