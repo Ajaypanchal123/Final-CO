@@ -1,0 +1,11 @@
+controller:
+  serviceType: ClusterIP
+  installPlugins:
+    - workflow-aggregator
+    - git
+    - kubernetes
+agent:
+  enabled: true
+persistence:
+  enabled: true
+  size: 8Gi

@@ -1,0 +1,18 @@
+controller:
+  # Disable initial plugin installation
+  installPlugins: []
+  initializeOnce: false
+  
+  # Resource limits
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+  
+  # Disable setup wizard
+  adminUser: "admin"
+  adminPassword: "admin123"
+  disableSetupWizard: true
